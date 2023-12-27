@@ -236,11 +236,11 @@ def get_relations(obs_points, obs_lidar_poses, crsp_hash_bundle):
     obs_tf_mats = []
     for obs_lidar_pose in obs_lidar_poses:
         yaw, x, y = obs_lidar_pose
-        R_mat = yaw2mat(yaw)
+        R_mat = yaw2mat(-yaw)
 
         tf_mat = np.array([
-            [R_mat[0,0], R_mat[0,1], x],
-            [R_mat[1,0], R_mat[1,1], y],
+            [R_mat[0,0], R_mat[0,1], -x],
+            [R_mat[1,0], R_mat[1,1], -y],
             [0.0,        0.0,        1.0],
         ])
 
@@ -282,15 +282,14 @@ def get_relations(obs_points, obs_lidar_poses, crsp_hash_bundle):
     #print(obs_tf_mats)
 
     for match_idx in f2i_idx_relations.keys():
-        for image_num in f2i_idx_relations[match_idx].keys():
+        print("match idx ", match_idx)
+        for image_num in sorted(f2i_idx_relations[match_idx].keys()):
             try:
                 kep = obs_points[image_num]
             except:
                 raise Exception("!!!!")
             
             tf_mat = obs_tf_mats[image_num]
-            tf_mat[:2,:2] = tf_mat[:2,:2]
-            tf_mat[:2,2] = tf_mat[:2,2]
             key_idx = f2i_idx_relations[match_idx][image_num]
             try:
                 x, y = kep[key_idx]
@@ -298,10 +297,11 @@ def get_relations(obs_points, obs_lidar_poses, crsp_hash_bundle):
                 raise Exception("points len", len(kep), "key_idx", key_idx, "image_num", image_num)
 
             fe_raw_point = np.array([x, y, 1]).reshape(3, 1)
-
+            dx = tf_mat[0,2]
+            dy = tf_mat[1,2]
             translation_mat = np.array([
-                [1.0,   0.0,    -tf_mat[2,0]],
-                [0.0,   1.0,    -tf_mat[2,1]],
+                [1.0,   0.0,    dx],
+                [0.0,   1.0,    dy],
                 [0.0,   0.0,    1.0],
             ])
 
@@ -311,10 +311,12 @@ def get_relations(obs_points, obs_lidar_poses, crsp_hash_bundle):
                 [0.0,        0.0,        1.0],
             ])
             translated_point = np.dot(translation_mat, fe_raw_point)
-            test_point = np.dot(tf_mat, fe_raw_point)
+            #test_point = np.dot(tf_mat, fe_raw_point)
             #print("-----------------------------------------------------")
             #print(test_point)
             fe_bundle_point = np.dot(rotation_mat, translated_point)
+            print("        ", "fe matching dx, dy", dx, dy)
+            print("        ", fe_raw_point.ravel(), " ", fe_bundle_point.ravel())
             #print(fe_bundle_point)
             fe_bundle_point = fe_bundle_point.ravel()[:2]
             #print("fe_bundle_point", fe_bundle_point)
